@@ -1,0 +1,16 @@
+# Python-generated files
+__pycache__/
+*.py[cod]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv/
+
+# Environment variables and secrets
+.env
+
+# Temporary test files
+test_schema_details.txt
