@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-line;
+  }
+  html {
+    @apply bg-canvas text-ink;
+  }
+  body {
+    @apply font-body antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid theme("colors.accent.DEFAULT");
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgba(15, 23, 32, 0.15);
+    border-radius: 999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* Minimal, hand-rolled markdown styling for assistant answers */
+.agent-prose {
+  @apply text-[15px] leading-relaxed text-ink;
+}
+.agent-prose p {
+  @apply mb-3;
+}
+.agent-prose p:last-child {
+  @apply mb-0;
+}
+.agent-prose strong {
+  @apply font-semibold text-ink;
+}
+.agent-prose ul {
+  @apply list-disc pl-5 mb-3 space-y-1;
+}
+.agent-prose ol {
+  @apply list-decimal pl-5 mb-3 space-y-1;
+}
+.agent-prose code {
+  @apply font-mono text-[13px] bg-ink/[0.05] px-1 py-0.5 rounded;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
