@@ -1,104 +1,372 @@
-# Data Agent — Backend
+# 🤖 AI Data Agent
 
-An AI data-analysis agent built with **LangGraph** + **Gemini**, backed by **PostgreSQL**, exposed over a small **FastAPI** layer for the [`frontend/`](../frontend) app.
+An AI-powered data analysis and ETL platform that allows users to interact with structured data using natural language.
 
-## Architecture
+Built with **Google Gemini, LangGraph, FastAPI, PostgreSQL, and Next.js**, the system can understand a user's request, intelligently route it to the appropriate agent, generate and validate SQL, execute database analysis, or perform an API-based ETL workflow.
 
-```
-Next.js frontend  --HTTP-->  FastAPI (api/server.py)  --invoke()-->  LangGraph agents  --->  PostgreSQL / external APIs
-```
+---
 
-- **`agents/sql_analyst.py`** — curates the question, builds a schema-aware prompt, generates SQL (Gemini), judges the SQL for safety (read-only only), executes it, then summarizes the result in plain language.
-- **`agents/etl_analyst.py`** — plans an extraction (which API URL / output filename), extracts JSON, transforms with pandas (dedupe, drop empty columns/rows, normalize column names), loads to `data/extract/*.csv`, then summarizes the run.
-- **`agents/data_agent.py`** — the "Auto" mode. Routes each request to the SQL analyst or the ETL analyst with a small classifier LLM call, then returns whichever result came back.
-- **`utils/database.py`** — thin psycopg2 wrapper: schema introspection + query execution (both string and structured column/row form).
-- **`utils/etl_tools.py`** — extract/transform/load helpers used by the ETL analyst.
-- **`api/server.py`** — FastAPI app. Translates HTTP requests into agent invocations and normalizes results into one JSON contract.
-- **`api/history_store.py`** — a JSON-file conversation log, structured the way a `conversations`/`messages` table pair would look, so it can be swapped for Postgres later without changing its interface.
+## ✨ Key Features
 
-## Setup
+### 🧠 LLM-Powered Data Analysis
+Ask questions about your database in natural language instead of writing SQL.
 
-Requires Python 3.11+ and a PostgreSQL database already loaded with the ride-share schema (see `feed_db.py`).
+Example:
 
-```bash
-cd Data_Agent
-cp .env.example .env      # fill in GEMINI_API_KEY and your Postgres credentials
-uv sync                   # or: pip install -e .
-```
+> Which payment method has the highest average payment amount?
 
-If you haven't loaded the database yet:
+The system uses an LLM to understand the request, generate SQL, execute it, and explain the results.
 
-```bash
-uv run feed_db.py
-```
+### 🔀 Intelligent Agent Routing
 
-## Running the API
+The **Data Agent** uses LangGraph and an LLM-powered router to determine which workflow should handle the request:
 
-```bash
+```text
+User Query
+    ↓
+LLM Router
+    ↓
+ ┌───────────────┐
+ │               │
+SQL             ETL
+ ↓               ↓
+SQL Agent    ETL Agent
+
+This allows the system to dynamically choose between database analysis and ETL operations.
+
+🧑‍⚖️ LLM-as-a-Judge
+
+Generated SQL is evaluated by a separate LLM-based judge before execution.
+
+SQL Generation
+      ↓
+LLM Judge
+      ↓
+ ┌────┴────┐
+Safe      Unsafe
+ ↓          ↓
+Execute    Cancel
+
+The judge returns structured Yes/No output with comments explaining the decision.
+
+🔐 Read-Only SQL Safety
+
+The system is designed for read-only analytical queries. SQL is checked before being executed against PostgreSQL.
+
+Supported analytical operations include:
+
+SELECT
+GROUP BY
+ORDER BY
+JOIN
+AVG()
+SUM()
+COUNT()
+
+The application also displays the safety decision and generated SQL in the frontend.
+
+For production deployment, deterministic SQL validation and a dedicated read-only database role should be added in addition to the LLM judge.
+
+🗄️ Automatic Database Schema Context
+
+The SQL Agent retrieves PostgreSQL schema information including:
+
+Tables
+Columns
+Data types
+Sample records
+
+This context is provided to the LLM before SQL generation, allowing it to generate queries based on the actual database structure.
+
+🔄 AI-Powered ETL Pipeline
+
+The ETL Agent handles API-based data workflows:
+
+User Request
+     ↓
+LLM ETL Planning
+     ↓
+API Extraction
+     ↓
+Data Transformation
+     ↓
+CSV Generation
+
+It extracts data from APIs, cleans and normalizes it using Pandas, and saves the processed dataset as CSV.
+
+📊 Automatic Visualization
+
+SQL results are returned in structured form and can automatically be displayed as:
+
+Interactive tables
+Bar charts
+KPI-style summaries
+Generated SQL
+Execution details
+💻 Full-Stack AI Application
+
+The project includes a complete web interface built with:
+
+Next.js
+React
+TypeScript
+Tailwind CSS
+Recharts
+
+The FastAPI backend exposes the AI agents through REST APIs.
+
+🏗️ Architecture
+                       User
+                        │
+                        ▼
+                ┌───────────────┐
+                │  Next.js UI   │
+                └───────┬───────┘
+                        │
+                        ▼
+                ┌───────────────┐
+                │ FastAPI API   │
+                └───────┬───────┘
+                        │
+                        ▼
+                ┌───────────────┐
+                │ LangGraph     │
+                │ LLM Router    │
+                └───────┬───────┘
+                        │
+                 ┌──────┴──────┐
+                 ▼             ▼
+          SQL Analyst       ETL Analyst
+                 │             │
+                 ▼             ▼
+          PostgreSQL       External API
+                 │             │
+                 ▼             ▼
+          SQL Results       Clean CSV
+                 │
+                 ▼
+          LLM Final Answer
+                 │
+                 ▼
+           Tables + Charts
+🤖 SQL Agent Workflow
+User Question
+      ↓
+Question Curation
+      ↓
+Database Schema Retrieval
+      ↓
+LLM SQL Generation
+      ↓
+LLM-as-a-Judge
+      ↓
+Conditional Safety Check
+      ↓
+SQL Execution
+      ↓
+Structured Results
+      ↓
+LLM Final Answer
+
+Example generated SQL:
+
+SELECT payment_method,
+       AVG(amount) AS average_amount
+FROM payments
+GROUP BY payment_method
+ORDER BY average_amount DESC;
+🔄 ETL Agent Workflow
+User Request
+      ↓
+LLM Extraction Plan
+      ↓
+API Extraction
+      ↓
+Pandas Transformation
+      ↓
+CSV Loading
+      ↓
+Summary
+
+The ETL pipeline tracks:
+
+Raw record count
+Clean record count
+Output file
+Execution time
+Pipeline status
+Errors
+🛠️ Tech Stack
+Category	Technologies
+LLM	Google Gemini
+Agent Framework	LangGraph, LangChain
+Backend	Python, FastAPI
+Database	PostgreSQL
+Data Processing	Pandas
+Validation	Pydantic, LLM-as-a-Judge
+Frontend	Next.js, React, TypeScript
+Styling	Tailwind CSS
+Visualization	Recharts
+HTTP / ETL	Requests
+Package Management	uv, npm
+📁 Project Structure
+ai-data-agent/
+│
+├── agents/
+│   ├── data_agent.py
+│   ├── sql_analyst.py
+│   └── etl_analyst.py
+│
+├── api/
+│   ├── server.py
+│   ├── schemas.py
+│   └── history_store.py
+│
+├── data/
+│   ├── users.csv
+│   ├── vehicles.csv
+│   ├── rides.csv
+│   ├── payments.csv
+│   ├── ratings.csv
+│   └── extract/
+│
+├── models/
+│   └── schema.py
+│
+├── utils/
+│   ├── database.py
+│   ├── etl_tools.py
+│   └── llm_pick.py
+│
+├── frontend/
+│   ├── app/
+│   ├── components/
+│   ├── hooks/
+│   └── lib/
+│
+├── feed_db.py
+├── main.py
+├── test.py
+├── pyproject.toml
+└── README.md
+⚙️ Local Setup
+Prerequisites
+Python 3.12+
+Node.js
+npm
+PostgreSQL
+uv
+Google Gemini API key
+1. Clone
+git clone https://github.com/Sparsh-gupta022/ai-data-agent.git
+cd ai-data-agent
+2. Install backend dependencies
+uv sync
+
+If using OneDrive on Windows and uv encounters a hardlink error:
+
+uv sync --link-mode=copy
+3. Configure environment
+
+Create .env using .env.example.
+
+GEMINI_API_KEY=your_gemini_api_key
+
+host=localhost
+port=5432
+user=your_postgres_username
+password=your_postgres_password
+database=your_database_name
+
+Never commit .env or API keys to GitHub.
+
+4. Load the database
+
+Make sure PostgreSQL is running, then:
+
+uv run python feed_db.py
+5. Start the backend
 uv run uvicorn api.server:app --reload --port 8000
-# or, without uv:
-uvicorn api.server:app --reload --port 8000
-```
 
-Check it's up:
+Backend:
 
-```bash
-curl http://localhost:8000/api/health
-```
+http://127.0.0.1:8000
 
-## API Endpoints
+Health check:
 
-### `POST /api/chat`
-```json
-{ "message": "Which payment method has the highest average transaction value?", "mode": "auto", "conversation_id": null }
-```
-`mode` is one of `"auto" | "sql" | "etl"`.
+http://127.0.0.1:8000/api/health
+6. Start the frontend
 
-Response:
-```json
-{
-  "success": true,
-  "mode": "auto",
-  "answer": "...",
-  "generated_sql": "SELECT ... (sql mode / auto-routed-to-sql only)",
-  "data": [["credit_card", 120], ["debit_card", 80]],
-  "columns": ["payment_method", "txn_count"],
-  "execution_time": 2.14,
-  "metadata": {
-    "conversation_id": "a1b2c3d4e5f6",
-    "routed_mode": "sql",
-    "is_safe_sql": "Yes",
-    "safety_comments": "Read-only SELECT query.",
-    "source_api": null,
-    "records_extracted": null,
-    "records_after_cleaning": null,
-    "download_url": null
-  },
-  "error": null
-}
-```
-Only the fields relevant to the mode that actually ran are populated; the rest are `null`.
+Open another terminal:
 
-### `GET /api/health`
-Reports whether Postgres is reachable and whether `GEMINI_API_KEY` is set, without ever returning credential values.
+cd frontend
+npm install
+npm run dev
 
-### `GET /api/history`
-Lightweight summaries of past conversations (id, title, timestamps, turn count).
+Open:
 
-### `GET /api/history/{conversation_id}`
-Full turn-by-turn record for one conversation.
+http://localhost:3000
+💡 Example Queries
 
-### `GET /api/download/{filename}`
-Serves a CSV previously written by the ETL analyst into `data/extract/`. Filenames are sanitized so this can only ever serve files from that directory.
+Try:
 
-## Security notes
+What are the different payment methods?
+Which payment method has the highest average payment amount?
+Which 10 users have spent the most money on rides?
+Which vehicle type has the highest average fare?
+Show the number of rides for each vehicle type.
+Analyze the monthly ride trends.
+🔐 Security & Production Considerations
 
-- The frontend never receives `.env` values or talks to Postgres directly, only this API does.
-- `sql_analyst` runs every generated query through an LLM "judge" node that rejects anything but read-only `SELECT`s before execution.
-- `/api/download` resolves only `os.path.basename(filename)` inside `data/extract/`, so path traversal outside that directory is not possible.
+The current project includes an LLM-based read-only safety check before SQL execution.
 
-## Known limitations
+For production use, additional protections should be implemented:
 
-- Conversation history is a single JSON file, adequate for local/demo use, not concurrent multi-user production.
-- The ETL analyst infers the source URL and output filename from the request via an LLM call; unusual phrasing may produce an unexpected URL/filename. The pipeline fails cleanly (`status: "failed"`) rather than silently doing the wrong thing.
-- There's no LangGraph node-level progress streaming; the frontend shows a stage-based loading indicator per mode rather than true live backend progress.
+Deterministic SQL parsing/validation
+Dedicated read-only PostgreSQL user
+Authentication and authorization
+API rate limiting
+SSRF protection / URL allowlisting for ETL
+Structured logging and monitoring
+Production secrets management
+🔮 Future Improvements
+ Real-time LangGraph node streaming
+ Stronger deterministic SQL validation
+ Query correction and retry
+ Persistent conversation storage
+ Anomaly detection
+ Automated report generation
+ More advanced visualizations
+ Authentication
+ Docker deployment
+ CI/CD
+ Production monitoring
+🎯 What This Project Demonstrates
+
+This project demonstrates practical AI Engineering concepts including:
+
+LLM application development
+LangGraph agent orchestration
+Conditional agent routing
+LLM structured outputs
+LLM-as-a-Judge
+Natural-language-to-SQL
+AI + deterministic tool execution
+SQL safety validation
+API-based ETL pipelines
+PostgreSQL integration
+FastAPI backend development
+Next.js AI application development
+Data visualization
+
+The core idea is to combine LLM reasoning with deterministic software tools to build a complete AI-powered data analysis system.
+
+👨‍💻 Author
+
+Sparsh Gupta
+
+GitHub:
+https://github.com/Sparsh-gupta022
+
+Project:
+https://github.com/Sparsh-gupta022/ai-data-agent
